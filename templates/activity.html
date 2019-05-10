@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<script type="text/javascript">
+var origin_nickname = "";
+var act_flag = 0;
+var user_act_flag = 0;
+</script>
+{% if user_info['nickname'] %}
+    <script type="text/javascript">
+        origin_nickname = "{{ user_info['nickname'] | safe }}";
+    </script>
+{% endif %}
+{% if user_act_flag %}
+    <script type="text/javascript">
+        user_act_flag = "{{ user_act_flag }}";
+    </script>
+{% endif %}
+
+
+<script type="text/javascript">
+var act_list_js = {{ act_list | tojson | safe }};
+var join_list_js = {{ join_list | tojson | safe }};
+//console.log(join_list_js)
+
+//can do a function overloading here, myQuitFunction without indexxx
+function myQuitFunction(from, indexxx = -1) {
+    if (confirm("Quit this activity?") == true) {
+        if(indexxx == -1)
+            post("{{ url_for('quit_activity') }}", {"quit": user_act_flag, "quit_activity": act_list_js['act_id'], "fromPage": from});
+        else
+            post("{{ url_for('quit_activity') }}", {"quit": join_list_js[indexxx]['transac_id'], "quit_activity": join_list_js[indexxx]['act_id'], "fromPage": from});
+    } else {
+        return false;
+    }
+}
+function myJoinFunction(nickname, indexxx = -1) {
+    var new_nickname = prompt("Nickname {% if not user_info %} (you can modify your participation after login){% endif %}", nickname);
+    //should do duplicate checking in case repeated names in the same activity, but too troublesome, maybe afterwards
+    if(new_nickname == false)
+        return false;
+    else if(new_nickname.length == 0)
+        alert("nickname cannot be empty");
+    else if(new_nickname != null){
+        if(indexxx == -1)
+            post("{{ url_for('join_activity') }}", {"activity": act_list_js['act_id'], "nickname":new_nickname});
+        else
+            post("{{ url_for('join_activity') }}", {"activity": act_list_js[indexxx]['act_id'], "nickname":new_nickname});
+    }
+}
+function myDeleteFunction(indexxx = -1) {
+    if (confirm("Delete this activity? You cannot recover it.") == true) {
+        if(indexxx == -1)
+            post("{{ url_for('delete_activity') }}", {"delete": act_list_js['act_id']});
+        else
+            post("{{ url_for('delete_activity') }}", {"delete": join_list_js[indexxx]['act_id']});
+    } else {
+        return false;
+    }
+}
+function myModifyFunction(indexxx) {
+    return false;
+}
+function myKickFunction(indexxx, act_id) {
+    if (confirm("Kick this user out of the activity?") == true) {
+        post("{{ url_for('kick_activity') }}", {"kick_activity": act_id, "kick_id": join_list_js[indexxx]['transac_id']})
+    } else {
+        return false;
+    }
+}
+//http://stackoverflow.com/questions/133925/javascript-post-request-like-a-form-submit
+function post(path, params) {
+    // The rest of this code assumes you are not using a library.
+    // It can be made less wordy if you use one.
+    var form = document.createElement("form");
+    form.setAttribute("method", "POST");
+    form.setAttribute("action", path);
+
+    for(var key in params) {
+        if(params.hasOwnProperty(key)) {
+            var hiddenField = document.createElement("input");
+            hiddenField.setAttribute("type", "hidden");
+            hiddenField.setAttribute("name", key);
+            hiddenField.setAttribute("value", params[key]);
+
+            form.appendChild(hiddenField);
+         }
+    }
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function copyToClipboard() {
+    var $temp = $("<input>");
+    $("body").append($temp);
+    $temp.val(window.location.href).select();
+    document.execCommand("copy");
+    $temp.remove();
+}
+</script>
+
+
+
+<table class="table table-hover">
+    <thead>
+        <th class="active">描述</th>
+        <th class="active">人数</th>
+        <th class="active">开始时间</th>
+        <th class="active">创建者</th>
+        <th class="active">类型</th>
+        {% if act_list['maker_id'] == user_info['user_id'] %}
+            <th class="active">操作</th>
+        {% endif %}
+    </thead>
+    <tbody>
+    <tr class="success">
+        <td>{{ act_list['title'] }}</td>
+        <td>{{ act_list['current_number']}} / {{ act_list['min_participant'] }}</td>
+        <td>{{ act_list['start_time'] }}</td>
+        <td onclick="document.location='/user/'.concat({{ act_list['maker_id'] }})">{{ act_list['nickname'] }}</td>
+        <td>{{ act_list['activity_type'] }}</td>
+        <td>
+            {% if user_act_flag %}
+                <button id="myQuit" class="btn btn-warning" role="button" onclick="myQuitFunction('activity')">Quit</button>
+            {% else %}
+                <button id="myJoin" class="btn btn-success" role="button" onclick="myJoinFunction(origin_nickname)">Join</button>
+            {% endif %}
+
+            <!-- http://stackoverflow.com/a/15948507/5211837 -->
+
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<!-- http://stackoverflow.com/a/30905277/5211837 -->
+<div><button onclick="copyToClipboard()">copy activity link</button></div>
+
+
+<div>
+<table class="table table-hover">
+<tbody>
+    {% for index in range(join_list|length) %}
+    <tr class="success">
+    <td class="try_jquery" onclick="document.location='/user/'.concat({{ join_list[index]['user_id'] }})">{{ join_list[index]['nickname'] }}</td>
+        {% if join_list[index]['user_id'] == session['user_id'] %}
+        <td><button class="btn btn-warning" role="button" onclick="myQuitFunction('activity', {{index}})">Quit</button></td>
+        {% elif act_list['maker_id'] == user_info['user_id'] %}
+        <td><button id="makerKickOther" class="btn btn-danger" role="button" onclick="myKickFunction({{index}}, {{act_list['act_id']}})">Kick</button></td>
+        {% endif %}
+    </tr>
+    {% endfor %}
+</tbody>
+</table>
+</div>
+<!-- cannot use JQuery because of the {{index}} out of jinja2 scope -->
+
+
+{% if act_list['maker_id'] == user_info['user_id'] %}
+    <button id="myModify" class="btn btn-success" role="button" onclick="myModifyFunction({{index}})">Modify</button>
+    <button id="myDelete" class="btn btn-danger" role="button" onclick="myDeleteFunction(0)">Delete</button>
+{% endif %}
+
+{% endblock %}

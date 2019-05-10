@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<script type="text/javascript">
+var user_act_flag = 0;
+</script>
+{% if user_act_flag %}
+    <script type="text/javascript">
+        user_act_flag = "{{ user_act_flag }}";
+    </script>
+{% endif %}
+
+
+<script type="text/javascript">
+var join_list_js = {{ join_list | tojson | safe }};
+var maker_list_js = {{ maker_list | tojson | safe }};
+var user_info_js = {{ user_info | tojson | safe }};
+
+function myQuitFunction(from, indexxx = -1) {
+    if (confirm("Quit this activity?") == true) {
+        if(indexxx == -1)
+            post("{{ url_for('quit_activity') }}", {"quit": user_act_flag, "quit_activity": act_list_js['act_id'], "fromPage": from});
+        else
+            post("{{ url_for('quit_activity') }}", {"quit": join_list_js[indexxx]['transac_id'], "quit_activity": join_list_js[indexxx]['act_id'], "fromPage": from});
+    } else {
+        return false;
+    }
+}
+function myDeleteFunction(indexxx = -1) {
+    if (confirm("Delete this activity? You cannot recover it.") == true) {
+        if(indexxx == -1)
+            post("{{ url_for('delete_activity') }}", {"delete": act_list_js['act_id']});
+        else
+            post("{{ url_for('delete_activity') }}", {"delete": maker_list_js[indexxx]['act_id']});
+    } else {
+        return false;
+    }
+}
+//http://stackoverflow.com/questions/133925/javascript-post-request-like-a-form-submit
+//<script src="myPost.js">
+function post(path, params) {
+    // The rest of this code assumes you are not using a library.
+    // It can be made less wordy if you use one.
+    var form = document.createElement("form");
+    form.setAttribute("method", "POST");
+    form.setAttribute("action", path);
+
+    for(var key in params) {
+        if(params.hasOwnProperty(key)) {
+            var hiddenField = document.createElement("input");
+            hiddenField.setAttribute("type", "hidden");
+            hiddenField.setAttribute("name", key);
+            hiddenField.setAttribute("value", params[key]);
+
+            form.appendChild(hiddenField);
+         }
+    }
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function update_nickname(nickname, userID) {
+    var new_nickname = prompt("Nickname", nickname);
+    if(new_nickname == false)
+        return false;
+    else if(new_nickname.length == 0){
+        alert("nickname cannot be empty");
+        return false;
+    }
+    else if(new_nickname == nickname){
+        alert("new nickname cannot be same as previous");
+        return false;
+    }
+    else if(new_nickname != null)
+        post("{{ url_for('nickname_update') }}", {"new_nickname": new_nickname, "user_id": userID});
+}
+</script>
+
+
+<div>
+    <div>
+        <div>Nickname</div>
+        <div>{{ target_info['nickname'] }}</div>
+        {% if target_info['user_id'] == user_info['user_id'] %}
+            <button class="btn btn-info" onclick="update_nickname(user_info_js['nickname'], {{ user_info['user_id'] }})">Click to update nickname</div>
+        {% endif %}
+    </div>
+    <!-- when the user sees his own profile -->
+    {% if target_info['user_id'] == user_info['user_id'] %}
+    <div>User ID</div>
+    <div>{{target_info['user_id']}}</div>
+    <div>Username</div>
+    <div>{{target_info['username']}}</div>
+    <div class="btn btn-warning btn-lg" data-toggle="modal" data-target="#myPassword">
+    <!--
+    <form class="form-signin" role="form" method='POST' action="{{ url_for('password_update') }}">
+        <h2 class="form-signin-heading">Update password</h2>
+        <input type="password" name="old_password" id="old_password" placeholder="old password" class="form-control" required>
+        <input type="password" name="new_password" id="new_password" placeholder="new password" class="form-control" required>
+        <input type="password" name="confirm_password" id="confirm_password" placeholder="confirm password" class="form-control" required>
+        <button class="btn btn-lg btn-primary btn-block pure-button pure-button-primary" type="submit" id="updatePassword">
+        Update</button>
+    </form>
+    -->
+        Click to update password
+    </div>
+    {% endif %}
+</div>
+
+
+<div class="panel-group">
+    <div class="panel panel-primary">
+        {% if target_info == user_info %}
+        <div class="panel-heading">Activity I join</div>
+        {% else %}
+        <div class="panel-heading">Activity This User join</div>
+        {% endif %}
+
+        <div class="panel-body">
+        <table class="table table-hover">
+            <thead>
+                <th class="active">No</th>
+                <th class="active">Title</th>
+                <th class="active">Moderator</th>
+                <th class="active">Number</th>
+                <th class="active">Start Time</th>
+                <th class="active">Type</th>
+
+                {% if target_info['user_id'] == user_info['user_id'] %}
+                <th class="active">Option</th> 
+                {% endif %}
+            </thead>
+
+            <tbody>
+                <!-- the HTML comment can't cover flask% -->
+                {% for index in range(join_list|length) %}
+                <tr class="success">
+                    <td>{{ index+1 }}</td>
+                    <td onclick="document.location='/activity/'.concat({{ join_list[index]['act_id'] }})">{{ join_list[index]['title'] }}</td>
+                    <td onclick="document.location='/user/'.concat({{ join_list[index]['maker_id'] }})">{{ join_list[index]['maker_name']}}</td>
+                    <td>{{ join_list[index]['current_number']}} / {{ join_list[index]['min_participant'] }}</td>
+                    <td>{{ join_list[index]['start_time'] }}</td>
+                    <td>{{ join_list[index]['activity_type'] }}</td>
+                    {% if target_info['user_id'] == user_info['user_id'] %}
+                    <td>
+                            <!-- fromPage? -->
+                            <!--<a href="{{ url_for('quit_activity') }}" id="quit_anchor" class="btn btn-danger" role ="button" 
+                            name="quit" value="{{ join_list[index]['act_id'] }}" onclick="return addArgs();">Quit</a>-->
+                            <button id="myQuit" class="btn btn-warning" role="button" onclick="return myQuitFunction('user', {{index}})">Quit</button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    {% if maker_list|length > 0 %}
+    <div class="panel panel-danger">
+        {% if target_info == user_info %}
+        <div class="panel-heading">Activity I create</div>
+        {% else %}
+        <div class="panel-heading">Activity This user creates</div>
+        {% endif %}
+        <div class="panel-body">
+        <table class="table table-hover">
+            <thead>
+                <th class="active">No</th>
+                <th class="active">Title</th>
+                <th class="active">Number</th>
+                <th class="active">Start Time</th>
+                <th class="active">Create Time</th>
+                <th class="active">Type</th>
+
+                {% if target_info == user_info %}
+                <th class="active">Option</th>
+                {% endif %}
+            </thead>
+
+            <tbody>
+                {% for index in range(maker_list|length) %}
+                <tr class="success">
+                    <td>{{ index+1 }}</td>
+                    <td onclick="document.location='/activity/'.concat({{ maker_list[index]['act_id'] }})">{{ maker_list[index]['title'] }}</td>
+                    <td>{{ maker_list[index]['current_number']}} / {{ maker_list[index]['min_participant'] }}</td>
+                    <td>{{ maker_list[index]['start_time'] }}</td>
+                    <td>{{ maker_list[index]['create_time'] }}</td>
+                    <td>{{ maker_list[index]['activity_type'] }}</td>
+                    {% if target_info == user_info %}
+                    <td>
+                        <!--<button id="myQuit" class="btn btn-danger" role="button" onclick="myQuitFunction({{index}})">Quit</button>-->
+                        <button id="myDelete" class="btn btn-danger" role="button" onclick="myDeleteFunction({{index}})">Delete</button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+
+
+<!-- Modal -->
+<!-- <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myPassword"> ADD </button> -->
+<div class="modal fade" id="myPassword" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog"> <div class="modal-content">
+ 
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            <h4 class="modal-title" id="myModalLabel" align="center">enter new password</h4>
+        </div>
+ 
+        <div class="modal-body">
+            <div class="row">
+                <div class="col-md-4 col-md-offset-4">
+                    <form class="form-horizontal"  action="{{ url_for('password_update') }}" method="POST" >
+                        <div class="form-group">
+                            <label class="control-label inline", for='new_password'>password</label>
+                            <input type="password" class="form-control" name="new_password" id="new_password">
+
+                            <label class="control-label inline", for='confirm_password'>repeat</label>
+                            <input type="password" class="form-control" name="confirm_password" id="confirm_password">
+
+                            <input type="hidden" name="user_id" value="{{ user_info['user_id'] }}">
+                        </div>
+                        <button type="submit"  class ="btn btn-primary" >Update</button>
+                        <input type="reset">
+                    </form> <!-- end form -->
+ 
+                </div>
+            </div>
+        </div> <!-- modal body -->
+ 
+    </div> </div>
+</div>
+
+<script type="text/javascript">
+    var new_password = document.getElementById("password");
+    var confirm_password = document.getElementById("confirm_password");
+
+    function validatePassword(){
+        if(new_password.value != confirm_password.value) {
+            //show the hint when fail validity
+            confirm_password.setCustomValidity("New Passwords Don't Match");
+        } else {
+            confirm_password.setCustomValidity('');
+        }
+    }
+    new_password.onchange = validatePassword;
+    confirm_password.onkeyup = validatePassword;
+</script>
+
+
+
+
+{% endblock %}

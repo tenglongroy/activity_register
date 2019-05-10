@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+        <link href="{{ url_for('static', filename='css/bootstrap.css', _external=True )}}" rel="stylesheet">
+        <script src="{{ url_for('static', filename='js/jquery.js', _external=True )}}"></script>
+        <script src="{{ url_for('static', filename='js/bootstrap.js', _external=True )}}"></script>
+        {% block title %} <title>Activity Display</title> {% endblock %}
+    </head>
+
+    <body>
+    <script type="text/javascript">
+        $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+    </script>
+        <div class="container">
+            <!-- navbar -->
+            <nav class="navbar navbar-inverse container">
+            <div class="navbar-header"> <a class="navbar-brand" href="{{ url_for('show_activity_list') }}">Activity</a> </div>
+
+            <!-- account links -->
+            <ul class="nav navbar-nav pull-right">
+            {% if "logged_in" in session %}
+                <li><a class="btn" href="{{ url_for('show_user_profile', userID=session['user_id']) }}">
+                {{ user_info['nickname'] }}</a></li>   <!--放两行上下并列-->
+                <li><a class="btn" href="{{ url_for('logout') }}">logout</a></li>
+            {% else %}
+                <li><a class="btn" href="{{ url_for('login') }}">login</a></li>
+                <!-- <li><a class="btn" href="{{ url_for('user_register') }}">sign up</a></li> -->
+                <li><a class="btn" href="{{ url_for('justGoToRegister') }}">sign up</a></li>
+            {% endif %}
+            </ul>
+
+            </nav>
+
+            <!-- flash message -->
+            {% for message in get_flashed_messages() %}
+            <div class="alert alert-warning alert-dismissible" role="alert">
+                <button type="button" class="close" data-dismiss="alert">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">close</span></button>
+                {{ message }}
+            </div>
+            {% endfor %}
+
+            <!-- body block -->
+            {% block content %}
+            {% endblock %}
+
+        </div>
+
+    </body>
+</html>

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<script type="text/javascript">
+var origin_nickname = "";
+var user_act_flag = 0;
+</script>
+{% if user_info['nickname'] %}
+    <script type="text/javascript">
+        origin_nickname = "{{ user_info['nickname'] | safe }}";
+    </script>
+{% endif %}
+{% if user_act_flag %}
+    <script type="text/javascript">
+        user_act_flag = "{{ user_act_flag }}";
+    </script>
+{% endif %}
+
+<script>
+
+var act_list_js = {{ act_list | tojson | safe }};
+var join_list_js = {{ join_list | tojson | safe }};
+
+function myQuitFunction(from, indexxx = -1) {
+    if (confirm("Quit this activity?") == true) {
+        if(indexxx == -1)
+            post("{{ url_for('quit_activity') }}", {"quit": user_act_flag, "quit_activity": act_list_js['act_id'], "fromPage": from});
+        else
+            post("{{ url_for('quit_activity') }}", {"quit": join_list_js[indexxx]['transac_id'], "quit_activity": join_list_js[indexxx]['act_id'], "fromPage": from});
+    } else {
+        return false;
+    }
+}
+function myJoinFunction(nickname, indexxx = -1) {
+    var new_nickname = prompt("Nickname {% if not user_info %} (you can modify your participation after login){% endif %}", nickname);
+    //should do duplicate checking in case repeated names in the same activity, but too troublesome, maybe afterwards
+    if(new_nickname == false)
+        return false;
+    else if(new_nickname.length <= 1)
+        alert("nickname too short");
+    else if(new_nickname != null){
+        if(indexxx == -1)
+            post("{{ url_for('join_activity') }}", {"activity": act_list_js['act_id'], "nickname":new_nickname});
+        else
+            post("{{ url_for('join_activity') }}", {"activity": act_list_js[indexxx]['act_id'], "nickname":new_nickname});
+    }
+}
+//http://stackoverflow.com/questions/133925/javascript-post-request-like-a-form-submit
+function post(path, params) {
+    // The rest of this code assumes you are not using a library.
+    // It can be made less wordy if you use one.
+    var form = document.createElement("form");
+    form.setAttribute("method", "POST");
+    form.setAttribute("action", path);
+
+    for(var key in params) {
+        if(params.hasOwnProperty(key)) {
+            var hiddenField = document.createElement("input");
+            hiddenField.setAttribute("type", "hidden");
+            hiddenField.setAttribute("name", key);
+            hiddenField.setAttribute("value", params[key]);
+
+            form.appendChild(hiddenField);
+         }
+    }
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+
+<table class="table table-hover">
+    <thead>
+        <th class="active">No</th>
+        <th class="active">描述</th>
+        <th class="active">人数</th>
+        <th class="active">开始时间</th>
+        <th class="active">创建者</th>
+        <th class="active">类型</th>
+        <th class="active">操作</th> 
+    </thead>
+    <tbody>
+        <!-- the HTML comment can't cover flask% -->
+        {% for index in range(act_list|length) %}
+            <!-- http://stackoverflow.com/questions/7323832/jquery-clickable-table-row-except-last-cell -->
+            <!-- http://stackoverflow.com/questions/1460958/html-table-row-like-a-link -->
+            {% if join_list != None and join_list[index] > 0 %}
+            <tr class="active">
+            {% else %}
+            <tr class="success" >
+            {% endif %}
+                <td>{{ index+1 }}</td>
+                <td onclick="document.location='/activity/'.concat({{ act_list[index]['act_id'] }})">{{ act_list[index]['title'] }}</td>
+                <td>{{ act_list[index]['current_number']}} / {{ act_list[index]['min_participant'] }}</td>
+                <td>{{ act_list[index]['start_time'] }}</td>
+                <td onclick="document.location='/user/'.concat({{ act_list[index]['maker_id'] }})">{{ act_list[index]['nickname'] }}</td>
+                <td>{{ act_list[index]['activity_type'] }}</td>
+                <td>
+                    {% if join_list != None and join_list[index] > 0 %}
+                        <button id="myQuit" class="btn btn-warning" role="button" onclick="return myQuitFunction('index', {{index}})">Quit</button>
+                    {% else %}
+                        <button id="myJoin" class="btn btn-success" role="button" onclick="myJoinFunction(origin_nickname, {{index}})">Join</button>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+
+<!-- ADD Button trigger modal -->
+<button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myModal"> ADD </button>
+<!-- Modal -->
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog"> <div class="modal-content">
+ 
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            <h4 class="modal-title" id="myModalLabel" align="center">add new activity</h4>
+        </div>
+ 
+        <div class="modal-body">
+            <div class="row">
+                <div class="col-md-4 col-md-offset-4">
+ 
+                    <form class="form-horizontal"  action="{{ url_for('create_activity') }}" method="POST" >
+                        <div class="form-group">
+                            <label class="control-label inline", for='title'>title</label>
+                            <input type="text" class="form-control" name="title" id="title" required autofocus>
+
+                            <label class="control-label inline", for='min_participant'>minimun people</label>
+                            <input type="number" class="form-control" name="min_participant" id="min_participant" 
+                                min="0" max="30" required>
+
+                            <label class="control-label inline", for='title'>start time</label>
+                            <input type="datetime-local" class="form-control" name="start_time" id="start_time" required>
+
+                            <label class="control-label inline", for='activity_type'>activity type</label>
+                            <select name="activity_type" required>
+                                <option value="桌游">桌游</option>
+                                <option value="运动">Sports</option>
+                                <option value="户外">Outdoor</option>
+                                <option value="其他">Others</option>
+                            </select>
+                        </div>
+ 
+                        <div class="form-group">
+                            <label>you join?</label>
+                            <label class="radio-inline"> <input type="radio" name="self_participate" value="1">YES</label>
+                            <label class="radio-inline"> <input type="radio" name="self_participate" value="0">NO</label>
+                        </div>
+ 
+                        <button type="submit"  class ="btn btn-primary" >ADD</button>
+                        <input type="reset">
+                    </form> <!-- end form -->
+ 
+                </div>
+            </div>
+        </div> <!-- modal body -->
+ 
+    </div> </div>
+</div>
+
+{% endblock %}
